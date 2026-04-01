@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🔐 AIデータ匿名化ツール</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+    header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: white;
+      padding: 24px 32px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    header h1 { font-size: 1.8rem; font-weight: 700; }
+    header p { margin-top: 6px; opacity: 0.75; font-size: 0.9rem; }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 32px 20px; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 4px; margin-bottom: 24px; }
+    .tab-btn {
+      flex: 1;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: all 0.2s;
+      background: white;
+      color: #666;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, #0f3460, #533483);
+      color: white;
+      box-shadow: 0 4px 16px rgba(83,52,131,0.35);
+    }
+    .tab-btn:hover:not(.active) { background: #f8f9ff; color: #0f3460; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Cards */
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    .card h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #0f3460;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed #c8d6e5;
+      border-radius: 12px;
+      padding: 40px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #f8faff;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: #533483;
+      background: #f0ebff;
+    }
+    .drop-zone .icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .drop-zone p { color: #666; font-size: 0.95rem; }
+    .drop-zone strong { color: #533483; }
+    input[type="file"] { display: none; }
+
+    /* Table preview */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 10px;
+      border: 1px solid #e8edf5;
+      margin-top: 12px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th {
+      background: #f0f2f8;
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      color: #444;
+      border-bottom: 1px solid #e0e4f0;
+    }
+    td {
+      padding: 8px 14px;
+      border-bottom: 1px solid #f0f2f8;
+      color: #333;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafbff; }
+
+    /* Column selector */
+    .column-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .col-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border: 2px solid #e0e4f0;
+      border-radius: 30px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 500;
+      transition: all 0.2s;
+      user-select: none;
+      background: white;
+    }
+    .col-chip:hover { border-color: #533483; color: #533483; }
+    .col-chip.selected {
+      border-color: #533483;
+      background: #533483;
+      color: white;
+    }
+    .col-chip .check { font-size: 1rem; }
+
+    /* Input */
+    label { font-size: 0.9rem; font-weight: 600; color: #444; display: block; margin-bottom: 6px; }
+    input[type="text"] {
+      width: 200px;
+      padding: 10px 14px;
+      border: 2px solid #e0e4f0;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+    input[type="text"]:focus { border-color: #533483; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #0f3460, #533483);
+      color: white;
+      box-shadow: 0 4px 12px rgba(83,52,131,0.3);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(83,52,131,0.4); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-download {
+      background: #e8f5e9;
+      color: #2e7d32;
+      border: 2px solid #a5d6a7;
+    }
+    .btn-download:hover { background: #c8e6c9; }
+    .btn-secondary {
+      background: #f0f2f8;
+      color: #555;
+    }
+    .btn-secondary:hover { background: #e4e8f5; }
+
+    .btn-group { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+
+    /* Results split */
+    .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 680px) { .result-grid { grid-template-columns: 1fr; } }
+
+    /* Alerts */
+    .alert {
+      padding: 14px 18px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      margin-top: 16px;
+    }
+    .alert-info { background: #e3f2fd; color: #1565c0; border-left: 4px solid #1565c0; }
+    .alert-warning { background: #fff8e1; color: #e65100; border-left: 4px solid #ff8f00; }
+    .alert-success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #43a047; }
+
+    /* Textarea */
+    textarea {
+      width: 100%;
+      padding: 14px;
+      border: 2px solid #e0e4f0;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 160px;
+      transition: border-color 0.2s;
+      outline: none;
+      line-height: 1.6;
+    }
+    textarea:focus { border-color: #533483; }
+
+    /* Radio */
+    .radio-group { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+    .radio-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border: 2px solid #e0e4f0;
+      border-radius: 30px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .radio-label:has(input:checked) {
+      border-color: #533483;
+      background: #f3f0ff;
+      color: #533483;
+    }
+    .radio-label input { display: none; }
+
+    /* Badge */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .badge-green { background: #e8f5e9; color: #2e7d32; }
+    .badge-blue { background: #e3f2fd; color: #1565c0; }
+
+    /* Hidden */
+    .hidden { display: none !important; }
+
+    /* Section label */
+    .section-label {
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #999;
+      margin-bottom: 10px;
+    }
+
+    /* Step indicator */
+    .steps { display: flex; gap: 0; margin-bottom: 28px; }
+    .step {
+      flex: 1;
+      text-align: center;
+      padding: 14px 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #aaa;
+      border-bottom: 3px solid #e0e4f0;
+      transition: all 0.2s;
+    }
+    .step.active { color: #533483; border-bottom-color: #533483; }
+    .step.done { color: #43a047; border-bottom-color: #43a047; }
+    .step span { font-size: 1.1rem; display: block; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🔐 AIデータ匿名化ツール</h1>
+  <p>個人情報をランダムなコードに置き換えて、AIに安全にデータを送信できるようにします</p>
+</header>
+
+<div class="container">
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('anonymize')">① 匿名化　<small>（AI送信前）</small></button>
+    <button class="tab-btn" onclick="switchTab('restore')">② 復元　<small>（AI回答後）</small></button>
+  </div>
+
+  <!-- ===================== TAB 1: 匿名化 ===================== -->
+  <div id="tab-anonymize" class="tab-panel active">
+
+    <!-- Step 1: ファイルアップロード -->
+    <div class="card">
+      <h2>📂 ステップ1：ファイルを選択</h2>
+      <div class="drop-zone" id="dropZone1" onclick="document.getElementById('fileInput1').click()">
+        <div class="icon">📄</div>
+        <p><strong>クリック</strong>してファイルを選択、またはここにドラッグ＆ドロップ</p>
+        <p style="margin-top:8px; font-size:0.82rem; color:#aaa;">対応形式：CSV、Excel（.xlsx / .xls）</p>
+      </div>
+      <input type="file" id="fileInput1" accept=".csv,.xlsx,.xls">
+    </div>
+
+    <!-- Step 2: プレビュー & 列選択 -->
+    <div class="card hidden" id="step2Card">
+      <h2>🔍 ステップ2：データのプレビューと列の選択</h2>
+      <div id="previewInfo" style="margin-bottom:14px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <span id="rowCount" class="badge badge-green"></span>
+        <span id="colCount" class="badge badge-blue"></span>
+        <span id="fileName" style="font-size:0.85rem; color:#888;"></span>
+      </div>
+      <div class="table-wrap" id="previewTable"></div>
+
+      <div style="margin-top:24px;">
+        <h2>🏷️ ステップ3：匿名化する列を選択（複数可）</h2>
+        <p style="font-size:0.85rem; color:#888; margin-bottom:12px;">クリックして選択・解除できます</p>
+        <div class="column-grid" id="columnChips"></div>
+      </div>
+
+      <div style="margin-top:20px; display:flex; gap:20px; align-items:flex-end; flex-wrap:wrap;">
+        <div>
+          <label for="prefixInput">IDのプレフィックス（先頭の文字）</label>
+          <input type="text" id="prefixInput" value="ANON" maxlength="10">
+        </div>
+        <div>
+          <p style="font-size:0.82rem; color:#888; margin-bottom:6px;">例：<code style="background:#f0f0f0;padding:2px 6px;border-radius:4px;">ANON-A3B7C2</code></p>
+        </div>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn btn-primary" id="runAnonymizeBtn" onclick="runAnonymize()" disabled>
+          🚀 匿名化を実行
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 4: 結果 -->
+    <div class="card hidden" id="resultCard">
+      <h2>✅ ステップ4：結果をダウンロード</h2>
+
+      <div class="result-grid">
+        <div>
+          <div class="section-label">📤 AIに送るデータ</div>
+          <div class="table-wrap" id="resultAnon"></div>
+          <div class="btn-group">
+            <button class="btn btn-download" onclick="downloadAnon()">⬇️ 匿名化済みCSVをダウンロード</button>
+          </div>
+        </div>
+        <div>
+          <div class="section-label">🔑 秘密の対応表（手元に保管）</div>
+          <div class="table-wrap" id="resultKey"></div>
+          <div class="btn-group">
+            <button class="btn btn-download" onclick="downloadKey()">⬇️ secret_key.jsonをダウンロード</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-warning" style="margin-top:20px;">
+        ⚠️ <strong>secret_key.json は絶対にAIに送らないでください。</strong>
+        ローカルの安全な場所に保管してください。このファイルがなければ復元できません。
+      </div>
+    </div>
+
+  </div><!-- /tab-anonymize -->
+
+  <!-- ===================== TAB 2: 復元 ===================== -->
+  <div id="tab-restore" class="tab-panel">
+
+    <div class="card">
+      <h2>🔑 ステップ1：secret_key.json を読み込む</h2>
+      <div class="drop-zone" id="dropZoneKey" onclick="document.getElementById('keyFileInput').click()">
+        <div class="icon">🗝️</div>
+        <p><strong>クリック</strong>してsecret_key.jsonを選択</p>
+        <p style="margin-top:8px; font-size:0.82rem; color:#aaa;">「① 匿名化」タブでダウンロードしたJSONファイル</p>
+      </div>
+      <input type="file" id="keyFileInput" accept=".json">
+      <div id="keyStatus" class="hidden alert alert-success" style="margin-top:14px;"></div>
+    </div>
+
+    <div class="card hidden" id="restoreStep2">
+      <h2>📋 ステップ2：復元する内容を選択</h2>
+      <div class="section-label">復元するデータの形式</div>
+      <div class="radio-group">
+        <label class="radio-label">
+          <input type="radio" name="restoreMode" value="text" checked onchange="toggleRestoreMode()">
+          💬 テキスト（AIの回答を貼り付け）
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="restoreMode" value="csv" onchange="toggleRestoreMode()">
+          📄 CSVファイル（AIが処理したCSV）
+        </label>
+      </div>
+
+      <!-- テキストモード -->
+      <div id="textModeDiv" style="margin-top:20px;">
+        <label for="aiTextInput">AIからの回答テキストを貼り付け</label>
+        <textarea id="aiTextInput" placeholder="例：分析の結果、ANON-A3B7C2 のスコアが最も高く、次いで ANON-D1E4F5 でした。"></textarea>
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="restoreText()">🔄 テキストを復元</button>
+        </div>
+        <div id="textResult" class="hidden" style="margin-top:20px;">
+          <label>✅ 復元後のテキスト</label>
+          <textarea id="restoredText" readonly></textarea>
+          <div class="btn-group">
+            <button class="btn btn-download" onclick="downloadRestoredText()">⬇️ 復元テキストをダウンロード</button>
+            <button class="btn btn-secondary" onclick="copyRestoredText()">📋 コピー</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CSVモード -->
+      <div id="csvModeDiv" class="hidden" style="margin-top:20px;">
+        <div class="drop-zone" id="dropZoneAI" onclick="document.getElementById('aiCsvInput').click()">
+          <div class="icon">📂</div>
+          <p><strong>クリック</strong>してAIが処理したCSVを選択</p>
+        </div>
+        <input type="file" id="aiCsvInput" accept=".csv,.xlsx,.xls">
+        <div id="aiCsvPreview" class="hidden" style="margin-top:16px;">
+          <div class="section-label">📋 アップロードされたデータ</div>
+          <div class="table-wrap" id="aiCsvTable"></div>
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="restoreCsv()">🔄 CSVを復元</button>
+          </div>
+        </div>
+        <div id="csvResult" class="hidden" style="margin-top:20px;">
+          <div class="section-label">✅ 復元後のデータ</div>
+          <div class="table-wrap" id="restoredCsvTable"></div>
+          <div class="btn-group">
+            <button class="btn btn-download" onclick="downloadRestoredCsv()">⬇️ 復元済みCSVをダウンロード</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /tab-restore -->
+
+</div><!-- /container -->
+
+<footer style="text-align:center; padding:24px; color:#aaa; font-size:0.82rem;">
+  🔒 すべての処理はブラウザ内（ローカル）で完結します。データは外部に送信されません。
+</footer>
+
+<script>
+// ========== 状態 ==========
+let parsedData = [];
+let parsedHeaders = [];
+let selectedColumns = new Set();
+let mappingAll = {};      // { col: { original: code } }
+let reverseMappingAll = {}; // { code: original }
+let anonymizedData = [];
+let restoredCsvData = [];
+
+// ========== タブ切替 ==========
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ========== ドラッグ&ドロップ ==========
+function setupDropZone(zoneId, fileInputId, callback) {
+  const zone = document.getElementById(zoneId);
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) callback(file);
+  });
+  document.getElementById(fileInputId).addEventListener('change', e => {
+    if (e.target.files[0]) callback(e.target.files[0]);
+  });
+}
+
+// ========== ファイル読み込み（CSV/Excel） ==========
+function readFile(file, callback) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'csv') {
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: results => callback(results.data, results.meta.fields)
+    });
+  } else {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      const headers = data.length > 0 ? Object.keys(data[0]) : [];
+      callback(data, headers);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+}
+
+// ========== テーブルのHTML生成 ==========
+function buildTable(data, headers, maxRows = 8) {
+  if (!data || data.length === 0) return '<p style="padding:12px;color:#888;">データなし</p>';
+  const rows = data.slice(0, maxRows);
+  let html = '<table><thead><tr>';
+  headers.forEach(h => html += `<th>${escHtml(h)}</th>`);
+  html += '</tr></thead><tbody>';
+  rows.forEach(row => {
+    html += '<tr>';
+    headers.forEach(h => html += `<td>${escHtml(String(row[h] ?? ''))}</td>`);
+    html += '</tr>';
+  });
+  if (data.length > maxRows) html += `<tr><td colspan="${headers.length}" style="text-align:center;color:#aaa;font-style:italic;padding:8px;">... 他 ${data.length - maxRows} 行</td></tr>`;
+  html += '</tbody></table>';
+  return html;
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ========== 初期化 ==========
+setupDropZone('dropZone1', 'fileInput1', file => {
+  readFile(file, (data, headers) => {
+    parsedData = data;
+    parsedHeaders = headers;
+    selectedColumns.clear();
+    document.getElementById('fileName').textContent = file.name;
+    document.getElementById('rowCount').textContent = `${data.length} 行`;
+    document.getElementById('colCount').textContent = `${headers.length} 列`;
+    document.getElementById('previewTable').innerHTML = buildTable(data, headers);
+    buildColumnChips(headers);
+    document.getElementById('step2Card').classList.remove('hidden');
+    document.getElementById('resultCard').classList.add('hidden');
+  });
+});
+
+function buildColumnChips(headers) {
+  const grid = document.getElementById('columnChips');
+  grid.innerHTML = '';
+  headers.forEach(h => {
+    const chip = document.createElement('div');
+    chip.className = 'col-chip';
+    chip.innerHTML = `<span class="check">○</span> ${escHtml(h)}`;
+    chip.dataset.col = h;
+    chip.addEventListener('click', () => {
+      if (selectedColumns.has(h)) {
+        selectedColumns.delete(h);
+        chip.classList.remove('selected');
+        chip.querySelector('.check').textContent = '○';
+      } else {
+        selectedColumns.add(h);
+        chip.classList.add('selected');
+        chip.querySelector('.check').textContent = '✓';
+      }
+      document.getElementById('runAnonymizeBtn').disabled = selectedColumns.size === 0;
+    });
+    grid.appendChild(chip);
+  });
+}
+
+// ========== 匿名化実行 ==========
+function runAnonymize() {
+  if (selectedColumns.size === 0) return;
+  const prefix = document.getElementById('prefixInput').value.trim() || 'ANON';
+  mappingAll = {};
+  anonymizedData = parsedData.map(row => ({ ...row }));
+
+  selectedColumns.forEach(col => {
+    const colMap = {};
+    const uniqueVals = [...new Set(parsedData.map(r => String(r[col] ?? '')).filter(v => v !== ''))];
+    uniqueVals.forEach(val => {
+      const code = `${prefix}-${randomHex(6)}`;
+      colMap[val] = code;
+    });
+    mappingAll[col] = colMap;
+    anonymizedData.forEach(row => {
+      const v = String(row[col] ?? '');
+      if (colMap[v]) row[col] = colMap[v];
+    });
+  });
+
+  // 結果表示
+  document.getElementById('resultAnon').innerHTML = buildTable(anonymizedData, parsedHeaders);
+
+  // 対応表
+  const keyRows = [];
+  Object.entries(mappingAll).forEach(([col, map]) => {
+    Object.entries(map).forEach(([orig, code]) => keyRows.push({ 列名: col, 元の値: orig, コード: code }));
+  });
+  document.getElementById('resultKey').innerHTML = buildTable(keyRows, ['列名','元の値','コード']);
+  document.getElementById('resultCard').classList.remove('hidden');
+  document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth' });
+}
+
+function randomHex(len) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let s = '';
+  for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+}
+
+// ========== ダウンロード（匿名化） ==========
+function downloadAnon() {
+  const csv = Papa.unparse(anonymizedData);
+  downloadBlob(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }), 'ai_ready_data.csv');
+}
+
+function downloadKey() {
+  const json = JSON.stringify(mappingAll, null, 2);
+  downloadBlob(new Blob([json], { type: 'application/json' }), 'secret_key.json');
+}
+
+// ========== 復元タブ ==========
+setupDropZone('dropZoneKey', 'keyFileInput', file => {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      reverseMappingAll = {};
+      let count = 0;
+      Object.values(data).forEach(map => {
+        Object.entries(map).forEach(([orig, code]) => {
+          reverseMappingAll[code] = orig;
+          count++;
+        });
+      });
+      document.getElementById('keyStatus').textContent = `✅ 対応表を読み込みました（${count}件のコードを登録）`;
+      document.getElementById('keyStatus').classList.remove('hidden');
+      document.getElementById('restoreStep2').classList.remove('hidden');
+    } catch(err) {
+      alert('JSONファイルの読み込みに失敗しました。正しいsecret_key.jsonを選択してください。');
+    }
+  };
+  reader.readAsText(file);
+});
+
+function toggleRestoreMode() {
+  const mode = document.querySelector('input[name="restoreMode"]:checked').value;
+  document.getElementById('textModeDiv').classList.toggle('hidden', mode !== 'text');
+  document.getElementById('csvModeDiv').classList.toggle('hidden', mode !== 'csv');
+}
+
+// テキスト復元
+function restoreText() {
+  const text = document.getElementById('aiTextInput').value;
+  let restored = text;
+  Object.entries(reverseMappingAll).forEach(([code, orig]) => {
+    restored = restored.split(code).join(orig);
+  });
+  document.getElementById('restoredText').value = restored;
+  document.getElementById('textResult').classList.remove('hidden');
+}
+
+function downloadRestoredText() {
+  const text = document.getElementById('restoredText').value;
+  downloadBlob(new Blob([text], { type: 'text/plain;charset=utf-8' }), 'restored_text.txt');
+}
+
+function copyRestoredText() {
+  const text = document.getElementById('restoredText').value;
+  navigator.clipboard.writeText(text).then(() => alert('コピーしました！'));
+}
+
+// CSV復元
+let aiCsvData = [];
+setupDropZone('dropZoneAI', 'aiCsvInput', file => {
+  readFile(file, (data, headers) => {
+    aiCsvData = data;
+    document.getElementById('aiCsvTable').innerHTML = buildTable(data, headers);
+    document.getElementById('aiCsvPreview').classList.remove('hidden');
+  });
+});
+
+function restoreCsv() {
+  restoredCsvData = aiCsvData.map(row => {
+    const newRow = {};
+    Object.entries(row).forEach(([k, v]) => {
+      const sv = String(v ?? '');
+      newRow[k] = reverseMappingAll[sv] !== undefined ? reverseMappingAll[sv] : v;
+    });
+    return newRow;
+  });
+  const headers = restoredCsvData.length > 0 ? Object.keys(restoredCsvData[0]) : [];
+  document.getElementById('restoredCsvTable').innerHTML = buildTable(restoredCsvData, headers);
+  document.getElementById('csvResult').classList.remove('hidden');
+}
+
+function downloadRestoredCsv() {
+  const csv = Papa.unparse(restoredCsvData);
+  downloadBlob(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }), 'restored_data.csv');
+}
+
+// ========== 共通ダウンロード ==========
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
